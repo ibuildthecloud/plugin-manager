@@ -80,9 +80,6 @@ func (p PortRule) iptables() []byte {
 	buf.WriteString(":")
 	buf.WriteString(p.TargetPort)
 
-	buf.WriteString(fmt.Sprintf("\n-A CATTLE_PREROUTING -p %v -m %v --dport %v -m addrtype --dst-type LOCAL -j DNAT --to-destination %v:%v",
-		p.Protocol, p.Protocol, p.SourcePort, p.TargetIP, p.TargetPort))
-
 	buf.WriteString(fmt.Sprintf("\n-A CATTLE_OUTPUT -p %v -m %v --dport %v -m addrtype --dst-type LOCAL -j DNAT --to-destination %v:%v",
 		p.Protocol, p.Protocol, p.SourcePort, p.TargetIP, p.TargetPort))
 
@@ -143,8 +140,7 @@ func (w *watcher) onChange(version string) error {
 			continue
 		}
 
-		if container.HostUUID != host.UUID ||
-			!network.HostPorts ||
+		if !network.HostPorts ||
 			container.PrimaryIp == "" {
 			continue
 		}
@@ -163,6 +159,10 @@ func (w *watcher) onChange(version string) error {
 		for _, port := range container.Ports {
 			rule, ok := parsePortRule(bridge, host.AgentIP, container.PrimaryIp, port)
 			if !ok {
+				continue
+			}
+
+			if container.HostUUID != host.UUID && rule.SourceIP == "0.0.0.0" {
 				continue
 			}
 
